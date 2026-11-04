@@ -1,0 +1,1 @@
+{"errorMessage": "customer_id is required", "errorType": "ValueError", "requestId": "fe87ed05-0dbc-4988-967b-e00dad916ca6", "stackTrace": ["  File \"/var/task/index.py\", line 30, in lambda_handler\n    raise ValueError(\"customer_id is required\")\n"]}

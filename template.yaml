@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AI-assisted serverless incident triage lab.
+
+Parameters:
+  ValidationMode:
+    Type: String
+    Default: safe
+    AllowedValues:
+      - unsafe
+      - safe
+    Description: Controls whether malformed events raise an exception or return a controlled response.
+
+Resources:
+  IncidentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/ai-devops-incident-triage
+      RetentionInDays: 1
+
+  IncidentFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole 
+  IncidentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: ai-devops-incident-triage
+      Runtime: python3.14
+      Handler: index.lambda_handler
+      Role: !GetAtt IncidentFunctionRole.Arn
+      MemorySize: 128
+      Timeout: 5
+      Environment:
+        Variables:
+          VALIDATION_MODE: !Ref ValidationMode
+      LoggingConfig:
+        ApplicationLogLevel: INFO
+        LogFormat: JSON
+        LogGroup: !Ref IncidentLogGroup
+        SystemLogLevel: INFO
+      Code:
+        ZipFile: |
+          import json
+          import os
+
+          def write_log(level, event_name, **fields):
+              payload = {"level": level, "event": event_name, **fields}
+              print(json.dumps(payload)) 
+
+          def lambda_handler(event, context):
+              request_id = context.aws_request_id
+              validation_mode = os.environ.get("VALIDATION_MODE", "safe")
+              customer_id = event.get("customer_id")
+
+              write_log(
+                  "INFO",
+                  "request_received",
+                  request_id=request_id,
+                  validation_mode=validation_mode,
+                  has_customer_id=bool(customer_id),
+              )
+
+              if not customer_id:
+                  write_log(
+                      "ERROR",
+                      "validation_failed",
+                      request_id=request_id,
+                      reason="missing_customer_id",
+                  )
+
+                  if validation_mode == "unsafe":
+                      raise ValueError("customer_id is required")
+
+                  return {
+                      "statusCode": 400,
+                      "message": "customer_id is required",
+                      "request_id": request_id,
+                  }
+              write_log(
+                  "INFO",
+                  "checkout_processed",
+                  request_id=request_id,
+                  customer_id=customer_id,
+              )
+
+              return {
+                  "statusCode": 200,
+                  "message": "checkout processed",
+                  "customer_id": customer_id,
+                  "request_id": request_id,
+              } 
+  IncidentErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ai-devops-lambda-errors
+      AlarmDescription: Detects unhandled errors in the incident-triage Lambda function.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref IncidentFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching 
