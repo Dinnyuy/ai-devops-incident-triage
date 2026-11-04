@@ -21,3 +21,25 @@ A controlled checkout event omitted `customer_id`. With `ValidationMode=unsafe`,
 ## AI-assisted findings
 
 Record the observation, suggestion, or hypothesis produced by CloudWatch investigations. State whether direct logs support it, and note any uncertainty instead of presenting AI output as fact.
+
+## Root cause
+
+The malformed event did not contain `customer_id`. Unsafe validation mode raised an exception instead of returning a controlled client-error response.
+
+## Remediation
+
+The same CloudFormation stack was redeployed with `ValidationMode=safe`. The handler then returned `statusCode: 400` for the unchanged malformed event without raising another exception.
+
+## Recovery validation
+
+- The remediated invocation had no CLI `FunctionError`.
+- `artifacts/remediated-response.json` contained a controlled `400` response.
+- No new unhandled exception appeared in the tailed logs.
+- The CloudWatch alarm returned to `OK` after evaluation.
+
+## Preventive actions
+
+- Validate required fields before business logic runs.
+- Add contract tests for malformed events.
+- Keep validation mode safe by default.
+- Review deployment parameter overrides during release approval.
