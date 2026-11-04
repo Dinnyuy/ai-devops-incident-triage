@@ -44,3 +44,15 @@ aws cloudformation deploy --template-file template.yaml --stack-name ai-devops-i
 ```text
 aws cloudformation deploy --template-file template.yaml --stack-name ai-devops-incident-triage --parameter-overrides ValidationMode=safe --capabilities CAPABILITY_IAM --region us-east-1
 ```
+## Evidence
+
+See `incident-report.md` for the detection signal, direct logs, AI-assisted findings, remediation, and recovery checks. Redact account identifiers and credentials from every screenshot.
+
+## Cost and cleanup
+
+The lab is designed for AWS Free Tier-scale usage. Related API and telemetry usage can incur charges beyond applicable allowances.
+
+```text
+aws cloudformation delete-stack --stack-name ai-devops-incident-triage --region us-east-1
+aws cloudformation wait stack-delete-complete --stack-name ai-devops-incident-triage --region us-east-1
+```
