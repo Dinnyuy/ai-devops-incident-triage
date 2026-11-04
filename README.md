@@ -23,3 +23,24 @@ CloudWatch Logs   Lambda Errors metric
                           v
                CloudWatch investigation
 ```
+## Incident lifecycle
+
+1. Deploy the CloudFormation stack with `ValidationMode=unsafe`.
+2. Prove the healthy checkout event works.
+3. Send the malformed event three times.
+4. Correlate the `validation_failed` log, `ValueError`, and alarm.
+5. Use CloudWatch investigations to review observations or hypotheses.
+6. Redeploy with `ValidationMode=safe`.
+7. Re-run the same malformed event and verify a controlled `400` response.
+
+## Deployment
+
+```text
+aws cloudformation deploy --template-file template.yaml --stack-name ai-devops-incident-triage --parameter-overrides ValidationMode=unsafe --capabilities CAPABILITY_IAM --region us-east-1
+```
+
+## Remediation
+
+```text
+aws cloudformation deploy --template-file template.yaml --stack-name ai-devops-incident-triage --parameter-overrides ValidationMode=safe --capabilities CAPABILITY_IAM --region us-east-1
+```
